@@ -1,0 +1,47 @@
+name: 'Terraform'
+
+on:
+  workflow_dispatch:
+    inputs:
+      storage_account_name:
+        description: 'Name of the storage account'
+        required: true
+        default: 'terraformstorage10001'
+      resource_group_name:
+        description: 'Name of the resource group'
+        required: true
+        default: 'terraform-rg'
+      location:
+        description: 'Location for the resources'
+        required: true
+        default: 'korea central'
+
+jobs:
+  terraform:
+    name: 'Terraform'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: ./storage
+    env:
+      ARM_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      ARM_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET }}
+      ARM_SUBSCRIPTION_ID: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
+      ARM_TENANT_ID: ${{ secrets.AZURE_TENANT_ID }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v2
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v2
+
+      - name: Terraform Init
+        run: terraform init -upgrade
+
+      - name: Terraform Plan
+        run: terraform plan -out=tfplan -var "storage_account_name=${{ github.event.inputs.storage_account_name }}" -var "resource_group_name=${{ github.event.inputs.resource_group_name }}" -var "location=${{ github.event.inputs.location }}"
+
+      - name: Terraform Apply
+        if: github.event_name == 'workflow_dispatch' # `workflow_dispatch` 이벤트에서만 실행되도록 조건 설정
+        run: terraform apply -auto-approve "tfplan"
